@@ -8,20 +8,20 @@ horizon = 100;
 %% System Defintion
 
 A = [0.89, 0.1; 0.1, 0.89];
-B = [0; 0.5];
+B = [0; 1];
 
 n = size(A, 1);
 m = size(B, 2);
 
-noise_var = 1.5;
+noise_var = 1;
 W = noise_var * eye(n);
 
 w = mvnrnd(zeros(1, n), W, samples*horizon);
 
 % Symmetric saturation bound
-u_bound = 12;
+u_bound = 10;
 
-K = [-0.564, -1.683];
+K = [-0.2820, -0.8415];
 %% OL Contraction LMI
 
 P = sdpvar(n, n, 'symmetric');
@@ -69,16 +69,18 @@ lambda_l = value(lambda_l);
 
 r_L = (u_bound^2) ./ (K*inv(P)*K');
 
-lambda_bar = sdpvar(1, 1);
-
-F = [
-    trace(P*W)*(1)/(1 - lambda_bar) == r_L * (lambda_bar - lambda_l)/(lambda - lambda_l),... 
-    lambda_bar <= lambda,...
-];
-
-optimize(F, lambda_bar);
-
-lambda_bar = value(lambda_bar);
+if r_L > trace(P*W) * 1/(1- lambda)
+    lambda_bar = sdpvar(1, 1);
+    F = [
+        trace(P*W)*(1)/(1 - lambda_bar) == r_L * (lambda_bar - lambda_l)/(lambda - lambda_l),... 
+        lambda_bar <= lambda,...
+    ];
+    
+    optimize(F, lambda_bar);
+    lambda_bar = value(lambda_bar);
+else
+    lambda_bar = lambda;
+end
 
 %% Generate Samples with computed K
 x0 = zeros(samples, n);
@@ -87,7 +89,7 @@ x = x0;
 
 for i = 1:horizon
     wi = w((i-1)*samples+1:i*samples, :);
-    x = EvolveState(A, B, K, x, wi);
+    x = EvolveState(A, B, K, x, wi,u_bound);
     X = [X; x];
 end
 
@@ -140,7 +142,7 @@ plot(ee'*P*ee <= lambda_bar_pub_radius,ee,[],[],sdpsettings('plot.shade',0, 'plo
 %% Viusalize lambda_bar evolution
 
 r_Ls = [];
-sat_bounds = 6:2:40;
+sat_bounds = 8.6:2:40;
 lambdas_bar = [];
 
 for i = 1:length(sat_bounds)
@@ -157,7 +159,6 @@ hold on;
 
 plot(r_Ls, lambdas_bar, 'Color', 'blue', 'Marker','x');
 plot(r_Ls, lambda_l * ones(length(sat_bounds), 1), 'Color', 'green', 'LineStyle', '--');
-plot(r_Ls, lambda * ones(length(sat_bounds), 1), 'Color', 'black', 'LineStyle', '--');
 
 
 %% Viuslaize Successive PRS
