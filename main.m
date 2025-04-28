@@ -32,7 +32,6 @@ lambda_max = 0.99;
 lambda = (lambda_max + lambda_min)/2;
 
 while (lambda_max - lambda_min) > 1e-4
-    P_con = P >= eye(n);
     
     F = [
         P >= eye(n),...
